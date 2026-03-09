@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, Check } from "lucide-react";
 import Logo from "./components/Logo";
 
 
@@ -30,6 +30,7 @@ export default function Home() {
   const [isEditingClass, setIsEditingClass] = useState(false);
   const [isEditingInstructor, setIsEditingInstructor] = useState(false);
   const [newSegment, setNewSegment] = useState({ name: '', minutes: 1, active: false });
+  const [editingTimer, setEditingTimer] = useState<{ idx: number; field: 'name' | 'minutes' } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -117,6 +118,18 @@ export default function Home() {
     }
   };
 
+  const saveEditingTimer = (idx: number, field: 'name' | 'minutes', value: string) => {
+    const newTimers = [...data.timers];
+    if (field === 'name') {
+      if (value.trim()) newTimers[idx] = { ...newTimers[idx], name: value.trim() };
+    } else {
+      const mins = parseInt(value);
+      if (mins > 0) newTimers[idx] = { ...newTimers[idx], duration: mins * 60 };
+    }
+    updateData({ ...data, timers: newTimers });
+    setEditingTimer(null);
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -151,21 +164,16 @@ export default function Home() {
               className="text-2xl font-light tracking-tight text-rh bg-transparent border-b border-rh/40 outline-none w-72 pb-1"
             />
           ) : (
-            <>
-              <span className="text-2xl font-light tracking-tight text-rh">{data.className}</span>
-              <button
-                onClick={() => setIsEditingClass(true)}
-                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rh transition-all duration-200"
-              >
-                <Pencil size={16} />
-              </button>
-            </>
+            <span
+              onClick={() => setIsEditingClass(true)}
+              className="text-2xl font-light tracking-tight text-rh cursor-text"
+            >{data.className}</span>
           )}
         </div>
       </div>
 
-      {/* Bottom Right: Instructor Name with hover-to-edit */}
-      <div className="absolute bottom-10 right-12 group flex items-center gap-3">
+      {/* Bottom Right: Instructor Name – click to edit */}
+      <div className="absolute bottom-10 right-12">
         {isEditingInstructor ? (
           <input
             autoFocus
@@ -176,16 +184,13 @@ export default function Home() {
             className="text-xl font-light bg-transparent border-b border-slate-300 outline-none text-right w-48 pb-1 text-slate-700"
           />
         ) : (
-          <>
-            <button
-              onClick={() => setIsEditingInstructor(true)}
-              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-slate-500 transition-all duration-200"
-            >
-              <Pencil size={16} />
-            </button>
+          <span
+            onClick={() => setIsEditingInstructor(true)}
+            className="cursor-text"
+          >
             <span className="text-xl font-medium text-black">{firstName}</span>
-            {lastName && <span className="text-xl font-light text-slate-500">{lastName}</span>}
-          </>
+            {lastName && <span className="text-xl font-light text-slate-500 ml-1">{lastName}</span>}
+          </span>
         )}
       </div>
 
@@ -221,7 +226,7 @@ export default function Home() {
           {data.timers && data.timers.length > 0 && !isFinished && (
             <button
               onClick={toggleTimer}
-              className="mt-10 px-12 py-2.5 rounded-full bg-black text-white text-sm font-medium tracking-widest uppercase hover:scale-[1.02] active:scale-[0.97] transition-transform duration-200"
+              className="mt-10 px-12 py-2.5 rounded-xl bg-black text-white text-sm font-medium tracking-widest uppercase hover:scale-[1.02] active:scale-[0.97] transition-transform duration-200"
             >
               {isRunning ? 'Pause' : 'Start'}
             </button>
@@ -235,40 +240,83 @@ export default function Home() {
         </div>
 
         {/* SIDEBAR */}
-        <div className="w-[420px] flex flex-col p-6 h-[650px] overflow-hidden">
+        <div className="w-[560px] flex flex-col p-6 h-[650px] overflow-hidden">
 
-          <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-2 pb-2" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex flex-col gap-3 flex-1 overflow-y-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {data.timers && data.timers.length === 0 && !newSegment.active && (
               <div className="text-center text-slate-400 mt-10 font-light">No sequences added yet.</div>
             )}
 
-            {data.timers && data.timers.map((t, idx) => (
-              <div
-                key={t.id || idx}
-                className={`flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group ${
-                  idx === currentTimerIndex && !isFinished
-                    ? "border-red-200 bg-red-50/50"
-                    : "border-transparent bg-white opacity-90 hover:opacity-100"
-                }`}
-              >
-                <span className={`font-light text-lg tracking-wide ${
-                  idx === currentTimerIndex && !isFinished ? "text-rh" : "text-slate-600"
-                }`}>{t.name}</span>
-                <div className="flex items-center gap-3">
-                  <span className={`tabular-nums font-light text-lg ${
-                    idx === currentTimerIndex && !isFinished ? "text-rh" : "text-slate-400"
-                  }`}>{Math.ceil(t.duration / 60)} min</span>
-                  {!isRunning && (
-                    <button
-                      onClick={() => handleDeleteTimer(idx)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-rh hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+            {data.timers && data.timers.map((t, idx) => {
+              const status = (isFinished || idx < currentTimerIndex) ? 'done'
+                : idx === currentTimerIndex ? 'active'
+                : 'pending';
+              const rowCls = status === 'done'
+                ? 'border-green-200 bg-green-50/60'
+                : status === 'active'
+                ? 'border-amber-200 bg-amber-50/60'
+                : 'border-slate-100 bg-slate-50';
+              const nameCls = status === 'done' ? 'text-green-700'
+                : status === 'active' ? 'text-amber-700'
+                : 'text-slate-600';
+              const minCls = status === 'done' ? 'text-green-500'
+                : status === 'active' ? 'text-amber-500'
+                : 'text-slate-400';
+
+              return (
+                <div
+                  key={t.id || idx}
+                  className={`flex items-center justify-between px-5 py-4 rounded-2xl border transition-all duration-300 group ${rowCls}`}
+                >
+                  {/* Name – click to edit */}
+                  {editingTimer?.idx === idx && editingTimer.field === 'name' ? (
+                    <input
+                      autoFocus
+                      defaultValue={t.name}
+                      onBlur={(e) => saveEditingTimer(idx, 'name', e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveEditingTimer(idx, 'name', e.currentTarget.value); if (e.key === 'Escape') setEditingTimer(null); }}
+                      className={`flex-1 font-light text-lg bg-transparent outline-none border-b border-current pb-0.5 ${nameCls}`}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => !isRunning && setEditingTimer({ idx, field: 'name' })}
+                      className={`font-light text-lg tracking-wide flex-1 ${nameCls} ${!isRunning ? 'cursor-text' : ''}`}
+                    >{t.name}</span>
                   )}
+
+                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                    {/* Minutes – click to edit */}
+                    {editingTimer?.idx === idx && editingTimer.field === 'minutes' ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        defaultValue={String(Math.ceil(t.duration / 60))}
+                        onBlur={(e) => saveEditingTimer(idx, 'minutes', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveEditingTimer(idx, 'minutes', e.currentTarget.value); if (e.key === 'Escape') setEditingTimer(null); }}
+                        onChange={(e) => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); }}
+                        className={`w-10 text-center tabular-nums font-light bg-transparent outline-none border-b border-current pb-0.5 ${minCls}`}
+                      />
+                    ) : (
+                      <span
+                        onClick={() => !isRunning && setEditingTimer({ idx, field: 'minutes' })}
+                        className={`tabular-nums font-light ${minCls} ${!isRunning ? 'cursor-text' : ''}`}
+                      >{Math.ceil(t.duration / 60)} min</span>
+                    )}
+
+                    {!isRunning && (
+                      <button
+                        onClick={() => handleDeleteTimer(idx)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-rh rounded-lg transition-all"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Add Segment – smoothly hides when running */}
             <div
