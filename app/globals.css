@@ -2,6 +2,15 @@
 @source "../node_modules";
 @theme {
   --color-border: var(--color-slate-200);
+  --color-rh: #EE0000;
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
 }
 
 @layer base {
