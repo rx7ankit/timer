@@ -240,12 +240,22 @@ export default function Home() {
         </div>
 
         {/* SIDEBAR */}
-        <div className="w-[560px] flex flex-col p-6 h-[650px] overflow-hidden">
+        <div className="w-[560px] flex flex-col p-6 h-[650px]">
 
-          <div className="flex flex-col gap-3 flex-1 overflow-y-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {data.timers && data.timers.length === 0 && !newSegment.active && (
-              <div className="text-center text-slate-400 mt-10 font-light">No sequences added yet.</div>
-            )}
+          {/* Scrollable list with fade masks */}
+          <div className="relative flex-1 min-h-0">
+            {/* top fade */}
+            <div className="pointer-events-none absolute top-0 left-0 right-0 h-10 z-10"
+              style={{ background: 'linear-gradient(to bottom, white 0%, transparent 100%)' }} />
+            {/* bottom fade */}
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 z-10"
+              style={{ background: 'linear-gradient(to top, white 0%, transparent 100%)' }} />
+
+            <div className="h-full overflow-y-auto flex flex-col justify-center gap-3 py-8"
+              style={{ scrollbarWidth: 'none' }}>
+              {data.timers && data.timers.length === 0 && !newSegment.active && (
+                <div className="text-center text-slate-400 font-light">No sequences added yet.</div>
+              )}
 
             {data.timers && data.timers.map((t, idx) => {
               const status = (isFinished || idx < currentTimerIndex) ? 'done'
@@ -362,8 +372,9 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+            </div>{/* end scroll container */}
+          </div>{/* end relative fade wrapper */}
+        </div>{/* end sidebar */}
 
       </div>
     </div>
