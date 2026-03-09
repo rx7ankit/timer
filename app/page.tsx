@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Pause } from "lucide-react";
 import Logo from "./components/Logo";
 
 
@@ -130,6 +130,25 @@ export default function Home() {
     setEditingTimer(null);
   };
 
+  // Per-row mini progress circle
+  const MiniCircle = ({ progress, status }: { progress: number; status: string }) => {
+    const r = 9;
+    const circ = 2 * Math.PI * r;
+    const offset = circ - Math.min(1, Math.max(0, progress)) * circ;
+    const track = status === 'done' ? '#bbf7d0' : status === 'active' ? '#fde68a' : '#e2e8f0';
+    const fill  = status === 'done' ? '#16a34a' : status === 'active' ? '#d97706' : '#94a3b8';
+    return (
+      <svg width="22" height="22" viewBox="0 0 22 22" className="-rotate-90 shrink-0">
+        <circle cx="11" cy="11" r={r} fill="transparent" stroke={track} strokeWidth="2.5" />
+        <circle cx="11" cy="11" r={r} fill="transparent" stroke={fill} strokeWidth="2.5"
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s linear' }} />
+      </svg>
+    );
+  };
+
+  const canEdit = !isRunning; // editable when stopped OR paused
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -251,7 +270,7 @@ export default function Home() {
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 z-10"
               style={{ background: 'linear-gradient(to top, white 0%, transparent 100%)' }} />
 
-            <div className="h-full overflow-y-auto flex flex-col justify-center gap-3 py-8"
+            <div className="h-full overflow-y-auto flex flex-col gap-3 pt-10 pb-20"
               style={{ scrollbarWidth: 'none' }}>
               {data.timers && data.timers.length === 0 && !newSegment.active && (
                 <div className="text-center text-slate-400 font-light">No sequences added yet.</div>
@@ -261,6 +280,10 @@ export default function Home() {
               const status = (isFinished || idx < currentTimerIndex) ? 'done'
                 : idx === currentTimerIndex ? 'active'
                 : 'pending';
+              const isActivePaused = !isRunning && idx === currentTimerIndex && !isFinished && data.timers.length > 0 && currentTimerIndex < data.timers.length;
+              const progress = status === 'done' ? 1
+                : status === 'active' ? (t.duration - timeLeft) / t.duration
+                : 0;
               const rowCls = status === 'done'
                 ? 'border-green-200 bg-green-50/60'
                 : status === 'active'
@@ -278,7 +301,7 @@ export default function Home() {
                   key={t.id || idx}
                   className={`flex items-center justify-between px-5 py-4 rounded-2xl border transition-all duration-300 group ${rowCls}`}
                 >
-                  {/* Name – click to edit */}
+                  {/* Name – click to edit when not running */}
                   {editingTimer?.idx === idx && editingTimer.field === 'name' ? (
                     <input
                       autoFocus
@@ -289,12 +312,19 @@ export default function Home() {
                     />
                   ) : (
                     <span
-                      onClick={() => !isRunning && setEditingTimer({ idx, field: 'name' })}
-                      className={`font-light text-lg tracking-wide flex-1 ${nameCls} ${!isRunning ? 'cursor-text' : ''}`}
+                      onClick={() => canEdit && setEditingTimer({ idx, field: 'name' })}
+                      className={`font-light text-lg tracking-wide flex-1 ${nameCls} ${canEdit ? 'cursor-text' : ''}`}
                     >{t.name}</span>
                   )}
 
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                  <div className="flex items-center gap-2.5 ml-4 shrink-0">
+                    {/* Paused badge on active row */}
+                    {isActivePaused && (
+                      <span className="flex items-center gap-1 text-xs text-amber-500 font-medium bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        <Pause size={10} className="fill-current" /> paused
+                      </span>
+                    )}
+
                     {/* Minutes – click to edit */}
                     {editingTimer?.idx === idx && editingTimer.field === 'minutes' ? (
                       <input
@@ -310,17 +340,21 @@ export default function Home() {
                       />
                     ) : (
                       <span
-                        onClick={() => !isRunning && setEditingTimer({ idx, field: 'minutes' })}
-                        className={`tabular-nums font-light ${minCls} ${!isRunning ? 'cursor-text' : ''}`}
+                        onClick={() => canEdit && setEditingTimer({ idx, field: 'minutes' })}
+                        className={`tabular-nums font-light text-sm ${minCls} ${canEdit ? 'cursor-text' : ''}`}
                       >{Math.ceil(t.duration / 60)} min</span>
                     )}
 
-                    {!isRunning && (
+                    {/* Mini progress circle */}
+                    <MiniCircle progress={progress} status={status} />
+
+                    {/* Delete – hover only, always available when not actively running */}
+                    {canEdit && (
                       <button
                         onClick={() => handleDeleteTimer(idx)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-rh rounded-lg transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rh rounded-lg transition-all duration-200"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
